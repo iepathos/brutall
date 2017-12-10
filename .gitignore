@@ -1,3 +1,6 @@
+# ignore built go bin
+brutall
+
 services/gobuster
 services/sublist3r
 services/altdns
