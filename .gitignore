@@ -1,3 +1,6 @@
 services/gobuster
 services/sublist3r
 services/altdns
+
+# filename used to hold merged words lists
+volumes/words/allwords.txt
