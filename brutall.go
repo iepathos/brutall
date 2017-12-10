@@ -25,7 +25,7 @@ func runService(service string, domain string) {
 	// results <- runService("sublist3r")
 	threads := 100
 	cmd := "./services/" + service + "/" + service + ".sh"
-	args := []string{"-d", domain, "-t", threads, "-v"}
+	args := []string{"-d", domain, "-t", string(threads), "-v"}
 	if err := exec.Command(cmd, args...).Run(); err != nil {
 		log.WithFields(log.Fields{
 			"docker": "localhost",
