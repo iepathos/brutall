@@ -1,4 +1,4 @@
 #!/bin/bash
-# merge all wordslist.txt in words/
+# merge all wordslist.txt in current directory, output uniq
 
-cat words/*.txt | uniq
+cat *.txt | uniq
