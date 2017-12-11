@@ -110,10 +110,10 @@ func runServices(domain string) {
 
 func main() {
 	if len(os.Args) < 2 {
-		log.WithFields(log.Fields{}).Info("Usage: ./brutall domain.com")
+		log.Error("Usage: ./brutall domain.com")
 		os.Exit(1)
 	} else {
-		log.WithFields(log.Fields{}).Info("Starting one brave binary!")
+		log.Info("Starting one brave binary!")
 	}
 	gatherTools()
 	build()
