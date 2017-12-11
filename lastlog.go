@@ -43,7 +43,7 @@ func getLastLog(containerName string) {
 func main() {
 	// get last running container name from that image
 	if len(os.Args) < 2 {
-		log.Info("Usage: ./lastlog gobuster")
+		log.Error("Usage: ./lastlog gobuster")
 		os.Exit(1)
 	}
 
@@ -54,7 +54,7 @@ func main() {
 	}
 
 	if !stringInSlice(os.Args[1], services) {
-		log.Info("Valid services are gobuster, sublist3r, and altdns")
+		log.Error("Valid services are gobuster, sublist3r, and altdns")
 		os.Exit(1)
 	}
 
