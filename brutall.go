@@ -18,7 +18,7 @@ func getBaseDir() string {
 
 func gatherTools() {
 	// ./services/clone_tools.sh
-	log.WithFields(log.Fields{"docker": "localhost"}).Info("Gathering tools from github")
+	log.WithFields(log.Fields{}).Info("Gathering tools from github")
 	cmd := "./services/clone_tools.sh"
 	args := []string{}
 	if err := exec.Command(cmd, args...).Run(); err != nil {
@@ -36,9 +36,8 @@ func buildService(servicePath string) {
 	args := []string{}
 	if err := exec.Command(cmd, args...).Run(); err != nil {
 		log.WithFields(log.Fields{
-			"docker":  "localhost",
-			"error":   err.Error(),
-			"service": servicePath,
+			"error": err.Error(),
+			"path":  servicePath,
 		}).Error("An error occurred trying to build")
 		os.Exit(1)
 	}
@@ -46,7 +45,7 @@ func buildService(servicePath string) {
 
 func buildVolumes() {
 	// go into volumes and build.sh
-	log.WithFields(log.Fields{"docker": "localhost"}).Info("Building volumes")
+	log.WithFields(log.Fields{}).Info("Building volumes")
 	baseDir := getBaseDir()
 	volumesDir := filepath.Join(baseDir, "volumes")
 	buildService(volumesDir)
@@ -54,7 +53,7 @@ func buildVolumes() {
 
 func buildServices() {
 	// go into services repos and build.sh
-	log.WithFields(log.Fields{"docker": "localhost"}).Info("Building services")
+	log.WithFields(log.Fields{}).Info("Building services")
 	baseDir := getBaseDir()
 	servicesDir := filepath.Join(baseDir, "services")
 	services := []string{
@@ -73,24 +72,50 @@ func build() {
 	buildServices()
 }
 
-func runService(service string, domain string) {
-	// results <- runService("sublist3r")
-	threads := 100
-	cmd := "./services/" + service + "/" + service + ".sh"
-	args := []string{"-d", domain, "-t", string(threads), "-v"}
+func runGobuster(domain string) {
+	// $HOME/work/bin/gobuster -m dns -u $TARGETS -w $finalLOC -t $gobusterthreads -fw > /tmp/gobuster.txt
+	// ./gobuster.sh --m dns -u $domain -w /words/allwords.txt -t 100 -fw > /words/gobuster.txt
+	cmd := "./services/gobuster/gobuster.sh"
+	args := []string{"--m", "dns", "-u", domain, "-t", "100", "-w", "/words/allwords.txt", "-fw"}
 	if err := exec.Command(cmd, args...).Run(); err != nil {
 		log.WithFields(log.Fields{
-			"docker":  "localhost",
-			"error":   err.Error(),
-			"service": service,
+			"error": err.Error(),
+			"cmd":   cmd,
+			"args":  args,
 		}).Error("An error occurred trying to execute")
 		os.Exit(1)
 	}
 }
 
-func main() {
-	log.WithFields(log.Fields{"docker": "localhost"}).Info("Starting one brave binary!")
+func runSublist3r(domain string) {
+	// ./sublist3r.sh -d $domain -t $sublist3rthreads -v -o $sublist3rfile
+	cmd := "./services/sublist3r/sublist3r.sh"
+	args := []string{"-d", domain, "-t", "100", "-v", "-o", "/words/sublist3r.txt"}
+	if err := exec.Command(cmd, args...).Run(); err != nil {
+		log.WithFields(log.Fields{
+			"error": err.Error(),
+			"cmd":   cmd,
+			"args":  args,
+		}).Error("An error occurred trying to execute")
+		os.Exit(1)
+	}
+}
 
+func runServices(domain string) {
+	baseDir := getBaseDir()
+	os.Chdir(baseDir)
+	runGobuster(domain)
+	runSublist3r(domain)
+}
+
+func main() {
+	if len(os.Args) < 2 {
+		log.WithFields(log.Fields{}).Info("Usage: ./brutall example.domain.com")
+		os.Exit(1)
+	} else {
+		log.WithFields(log.Fields{}).Info("Starting one brave binary!")
+	}
 	gatherTools()
 	build()
+	runServices(os.Args[1])
 }
