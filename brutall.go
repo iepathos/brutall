@@ -40,10 +40,10 @@ func gatherTools() {
 }
 
 func buildService(servicePath string) {
+	// ./services/servicePath/build.sh
 	os.Chdir(servicePath)
 	cmd := "./build.sh"
-	args := []string{}
-	if err := exec.Command(cmd, args...).Run(); err != nil {
+	if err := exec.Command(cmd).Run(); err != nil {
 		log.WithFields(log.Fields{
 			"error": err.Error(),
 			"path":  servicePath,
@@ -62,7 +62,7 @@ func buildVolumes() {
 
 func buildServices() {
 	// go into services repos and build.sh
-	log.WithFields(log.Fields{}).Info("Building services")
+	log.Info("Building services")
 	baseDir := getBaseDir()
 	servicesDir := filepath.Join(baseDir, "services")
 	services := []string{
