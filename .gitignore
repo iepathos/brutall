@@ -1,5 +1,6 @@
-# ignore built go bin
+# ignore built go bins
 brutall
+lastlog
 
 services/gobuster
 services/sublist3r
