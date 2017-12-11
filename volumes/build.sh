@@ -5,7 +5,7 @@ docker volume create words
 
 # add and .txt files in words/ to the words volume
 pushd words
-	echo "Merge words lists into allwords.txt"
+	echo "Merging words lists into allwords.txt"
 	./merge_words.sh > allwords.txt
 popd
 
