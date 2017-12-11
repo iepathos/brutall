@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 func getBaseDir() string {
@@ -16,12 +18,19 @@ func getBaseDir() string {
 	return exPath
 }
 
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
 func gatherTools() {
 	// ./services/clone_tools.sh
-	log.WithFields(log.Fields{}).Info("Gathering tools from github")
 	cmd := "./services/clone_tools.sh"
-	args := []string{}
-	if err := exec.Command(cmd, args...).Run(); err != nil {
+	if err := exec.Command(cmd).Run(); err != nil {
 		log.WithFields(log.Fields{
 			"docker": "localhost",
 			"error":  err.Error(),
@@ -72,19 +81,19 @@ func build() {
 	buildServices()
 }
 
-func runGobuster(domain string) {
+func runGobuster(domain string) string {
 	// $HOME/work/bin/gobuster -m dns -u $TARGETS -w $finalLOC -t $gobusterthreads -fw > /tmp/gobuster.txt
 	// ./gobuster.sh --m dns -u $domain -w /words/allwords.txt -t 100 -fw > /words/gobuster.txt
-	cmd := "./services/gobuster/gobuster.sh"
-	args := []string{"--m", "dns", "-u", domain, "-t", "100", "-w", "/words/allwords.txt", "-fw"}
-	if err := exec.Command(cmd, args...).Run(); err != nil {
-		log.WithFields(log.Fields{
-			"error": err.Error(),
-			"cmd":   cmd,
-			"args":  args,
-		}).Error("An error occurred trying to execute")
-		os.Exit(1)
+	cmdStr := fmt.Sprintf("./services/gobuster/gobuster.sh --m dns -u %s -t 100 -w /words/allwords.txt -fw", domain)
+	cmd := exec.Command("sh", "-c", cmdStr)
+	out, err := cmd.Output()
+	log.Printf(cmdStr)
+	log.Printf(string(out))
+	if err != nil {
+		log.Fatal(err)
 	}
+	cleanOut := strings.TrimSpace(string(out))
+	return cleanOut
 }
 
 func runSublist3r(domain string) {
@@ -110,12 +119,15 @@ func runServices(domain string) {
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Error("Usage: ./brutall domain.com")
+		log.Error("Usage: ./brutall domain.com --build")
 		os.Exit(1)
 	} else {
 		log.Info("Starting one brave binary!")
 	}
+
 	gatherTools()
-	build()
+	if stringInSlice("--build", os.Args) {
+		build()
+	}
 	runServices(os.Args[1])
 }
