@@ -117,11 +117,31 @@ func runSublist3r(domain string) {
 	cmd.Wait()
 }
 
+func runAltdns(domain string) {
+	// /usr/bin/python /opt/subscan/altdns/altdns.py -i $finaloutputbeforealtdns -o data_output -w words.txt -r -e -d $altdnsserver -s $altdnsoutput -t $altdnsthreads
+
+	baseDir := getBaseDir()
+	altdns := filepath.Join(baseDir, "services", "altdns", "altdns.sh")
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("%s -d %s -i /words/finaloutputbeforealtdns.txt -o data_output -w words.txt -r -e -d 8.8.8.8 -s /words/altdnsoutput.txt -t 100", altdns, domain))
+	stdout, _ := cmd.StdoutPipe()
+	cmd.Start()
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		m := scanner.Text()
+		fmt.Println(m)
+	}
+	cmd.Wait()
+}
+
 func runServices(domain string) {
 	baseDir := getBaseDir()
 	os.Chdir(baseDir)
+	// run these services in parallel
 	runGobuster(domain)
 	runSublist3r(domain)
+
+	// run altdns after other services have completed
+	runAltdns(domain)
 }
 
 func main() {
