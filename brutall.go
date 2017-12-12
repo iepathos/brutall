@@ -1,12 +1,14 @@
 package main
 
 import (
+	// "bytes"
+	"bufio"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+	// "strings"
 )
 
 func getBaseDir() string {
@@ -81,19 +83,23 @@ func build() {
 	buildServices()
 }
 
-func runGobuster(domain string) string {
+func runGobuster(domain string) {
 	// $HOME/work/bin/gobuster -m dns -u $TARGETS -w $finalLOC -t $gobusterthreads -fw > /tmp/gobuster.txt
 	// ./gobuster.sh --m dns -u $domain -w /words/allwords.txt -t 100 -fw > /words/gobuster.txt
-	cmdStr := fmt.Sprintf("./services/gobuster/gobuster.sh --m dns -u %s -t 100 -w /words/allwords.txt -fw", domain)
-	cmd := exec.Command("sh", "-c", cmdStr)
-	out, err := cmd.Output()
-	log.Printf(cmdStr)
-	log.Printf(string(out))
-	if err != nil {
-		log.Fatal(err)
+	baseDir := getBaseDir()
+	gobuster := filepath.Join(baseDir, "services", "gobuster", "gobuster.sh")
+
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("%s --m dns -t 100 -w /words/allwords.txt -u %s -fw", gobuster, domain))
+
+	stdout, _ := cmd.StdoutPipe()
+	cmd.Start()
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		m := scanner.Text()
+		fmt.Println(m)
 	}
-	cleanOut := strings.TrimSpace(string(out))
-	return cleanOut
+	cmd.Wait()
 }
 
 func runSublist3r(domain string) {

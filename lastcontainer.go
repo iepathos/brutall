@@ -29,16 +29,6 @@ func getContainerName(imageName string) string {
 	return splitOut[len(splitOut)-1]
 }
 
-func getLastLog(containerName string) string {
-	cmd := exec.Command("sh", "-c", fmt.Sprintf("docker logs %s", containerName))
-	out, err := cmd.Output()
-	if err != nil {
-		log.Fatal(err)
-	}
-	cleanOut := strings.TrimSpace(string(out))
-	return cleanOut
-}
-
 func main() {
 	// get last running container name from that image
 	if len(os.Args) < 2 {
@@ -58,5 +48,5 @@ func main() {
 	}
 
 	containerName := getContainerName(os.Args[1])
-	log.Printf(getLastLog(containerName))
+	fmt.Printf(containerName)
 }
