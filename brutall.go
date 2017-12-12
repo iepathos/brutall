@@ -219,7 +219,7 @@ func runServices(domain string) {
 	serviceStatuses := make(chan bool)
 	var wg sync.WaitGroup
 	// run these services in parallel
-	wg.Add(1)
+	wg.Add(2)
 	go func() {
 		defer wg.Done()
 		serviceStatuses <- runGobuster(domain)
@@ -234,7 +234,6 @@ func runServices(domain string) {
 		defer wg.Done()
 		serviceStatuses <- runSublist3r(domain)
 	}()
-
 	wg.Wait()
 
 	// run altdns after the other services have completed
