@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	// "strings"
+	"sync"
 )
 
 func getBaseDir() string {
@@ -83,30 +84,28 @@ func build() {
 	buildServices()
 }
 
-func runGobuster(domain string) {
+func runGobuster(domain string) bool {
 	// $HOME/work/bin/gobuster -m dns -u $TARGETS -w $finalLOC -t $gobusterthreads -fw > /tmp/gobuster.txt
 	// ./gobuster.sh --m dns -u $domain -w /words/allwords.txt -t 100 -fw > /words/gobuster.txt
 	baseDir := getBaseDir()
 	gobuster := filepath.Join(baseDir, "services", "gobuster", "gobuster.sh")
-
 	cmd := exec.Command("sh", "-c", fmt.Sprintf("%s --m dns -t 100 -w /words/allwords.txt -u %s -fw", gobuster, domain))
-
 	stdout, _ := cmd.StdoutPipe()
 	cmd.Start()
-
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
 		m := scanner.Text()
 		fmt.Println(m)
 	}
 	cmd.Wait()
+	return true
 }
 
-func runSublist3r(domain string) {
+func runSublist3r(domain string) bool {
 	// ./sublist3r.sh -d $domain -t $sublist3rthreads -v -o $sublist3rfile
 	baseDir := getBaseDir()
 	sublist3r := filepath.Join(baseDir, "services", "sublist3r", "sublist3r.sh")
-	cmd := exec.Command("sh", "-c", fmt.Sprintf("%s -d %s -t 100 -v -o /words/sublist3r.txt", sublist3r, domain))
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("%s -d %s -t 50 -v -o /words/sublist3r.txt", sublist3r, domain))
 	stdout, _ := cmd.StdoutPipe()
 	cmd.Start()
 	scanner := bufio.NewScanner(stdout)
@@ -115,9 +114,10 @@ func runSublist3r(domain string) {
 		fmt.Println(m)
 	}
 	cmd.Wait()
+	return true
 }
 
-func runAltdns(domain string) {
+func runAltdns(domain string) bool {
 	// /usr/bin/python /opt/subscan/altdns/altdns.py -i $finaloutputbeforealtdns -o data_output -w words.txt -r -e -d $altdnsserver -s $altdnsoutput -t $altdnsthreads
 
 	baseDir := getBaseDir()
@@ -131,15 +131,26 @@ func runAltdns(domain string) {
 		fmt.Println(m)
 	}
 	cmd.Wait()
+	return true
 }
 
 func runServices(domain string) {
 	baseDir := getBaseDir()
 	os.Chdir(baseDir)
+	serviceStatuses := make(chan bool)
+	var wg sync.WaitGroup
 	// run these services in parallel
-	runGobuster(domain)
-	runSublist3r(domain)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		serviceStatuses <- runGobuster(domain)
+	}()
+	go func() {
+		defer wg.Done()
+		serviceStatuses <- runSublist3r(domain)
+	}()
 
+	wg.Wait()
 	// run altdns after other services have completed
 	runAltdns(domain)
 }
