@@ -1,14 +1,13 @@
 package main
 
 import (
-	// "bytes"
 	"bufio"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
 	"path/filepath"
-	// "strings"
+	"strings"
 	"sync"
 )
 
@@ -28,6 +27,28 @@ func stringInSlice(a string, list []string) bool {
 		}
 	}
 	return false
+}
+
+func getContainerName(imageName string) string {
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("docker ps -a | grep %s | head -n 1", imageName))
+	out, err := cmd.Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	cleanOut := strings.TrimSpace(string(out))
+
+	splitOut := strings.Fields(cleanOut)
+	return splitOut[len(splitOut)-1]
+}
+
+func getLastLog(containerName string) string {
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("docker logs %s", containerName))
+	out, err := cmd.Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	cleanOut := strings.TrimSpace(string(out))
+	return cleanOut
 }
 
 func gatherTools() {
@@ -89,7 +110,7 @@ func runGobuster(domain string) bool {
 	// ./gobuster.sh --m dns -u $domain -w /words/allwords.txt -t 100 -fw > /words/gobuster.txt
 	baseDir := getBaseDir()
 	gobuster := filepath.Join(baseDir, "services", "gobuster", "gobuster.sh")
-	cmd := exec.Command("sh", "-c", fmt.Sprintf("%s --m dns -t 100 -w /words/allwords.txt -u %s -fw", gobuster, domain))
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("%s --m dns -t 100 -w /words/allwords.txt -u %s -q -fw", gobuster, domain))
 	stdout, _ := cmd.StdoutPipe()
 	cmd.Start()
 	scanner := bufio.NewScanner(stdout)
@@ -101,11 +122,69 @@ func runGobuster(domain string) bool {
 	return true
 }
 
+func handleGobusterOutput() {
+	// get last gobuster image log
+	lastLog := getLastLog("gobuster")
+	// cleanup log
+	// cat /tmp/gobuster.txt | grep Found | sed 's/Found: //'
+	domains := []string{}
+	line := ""
+	scanner := bufio.NewScanner(strings.NewReader(lastLog))
+	for scanner.Scan() {
+		line = scanner.Text()
+		if strings.Contains(line, "Found") {
+			lsplit := strings.Fields(line)
+			domain := lsplit[len(lsplit)-1]
+			domains = append(domains, domain)
+		}
+	}
+	cleanedLogs := strings.Join(domains, "\n")
+
+	// write to /tmp/gobuster.txt
+	tmpGobuster := "/tmp/gobuster.txt"
+	f, err := os.Create(tmpGobuster)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	_, err = f.WriteString(cleanedLogs)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	// add gobuster.txt to docker words volume
+	baseDir := getBaseDir()
+	addFileToWordsVolume := filepath.Join(baseDir, "volumes", "add_file_to_words_volume.sh")
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("%s %s", addFileToWordsVolume, tmpGobuster))
+	stdout, _ := cmd.StdoutPipe()
+	cmd.Start()
+	scanner = bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		m := scanner.Text()
+		fmt.Println(m)
+	}
+	cmd.Wait()
+}
+
 func runSublist3r(domain string) bool {
 	// ./sublist3r.sh -d $domain -t $sublist3rthreads -v -o $sublist3rfile
 	baseDir := getBaseDir()
 	sublist3r := filepath.Join(baseDir, "services", "sublist3r", "sublist3r.sh")
 	cmd := exec.Command("sh", "-c", fmt.Sprintf("%s -d %s -t 50 -v -o /words/sublist3r.txt", sublist3r, domain))
+	stdout, _ := cmd.StdoutPipe()
+	cmd.Start()
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		m := scanner.Text()
+		fmt.Println(m)
+	}
+	cmd.Wait()
+	return true
+}
+
+func runEnumall(domain string) bool {
+	baseDir := getBaseDir()
+	enumall := filepath.Join(baseDir, "services", "enumall", "enumall.sh")
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("%s %s -w /words/gobuster.txt", enumall, domain))
 	stdout, _ := cmd.StdoutPipe()
 	cmd.Start()
 	scanner := bufio.NewScanner(stdout)
@@ -144,6 +223,12 @@ func runServices(domain string) {
 	go func() {
 		defer wg.Done()
 		serviceStatuses <- runGobuster(domain)
+		// grab log from gobuster container that just ran
+		// cleanup the log, output to /tmp/gobuster.txt and add to words volume
+		handleGobusterOutput()
+
+		// run enumall, pass the gobuster output as the wordslist
+		runEnumall(domain)
 	}()
 	go func() {
 		defer wg.Done()
@@ -151,7 +236,8 @@ func runServices(domain string) {
 	}()
 
 	wg.Wait()
-	// run altdns after other services have completed
+
+	// run altdns after the other services have completed
 	runAltdns(domain)
 }
 

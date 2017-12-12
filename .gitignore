@@ -6,6 +6,7 @@ lastcontainer
 services/gobuster
 services/sublist3r
 services/altdns
+services/enumall
 
 # filename used to hold merged words lists
 volumes/words/allwords.txt
