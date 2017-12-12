@@ -32,7 +32,7 @@ func getContainerName(imageName string) string {
 func main() {
 	// get last running container name from that image
 	if len(os.Args) < 2 {
-		log.Error("Usage: ./lastlog gobuster")
+		log.Error("Usage: ./lastcontainer gobuster")
 		os.Exit(1)
 	}
 
