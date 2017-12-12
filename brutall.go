@@ -104,16 +104,17 @@ func runGobuster(domain string) {
 
 func runSublist3r(domain string) {
 	// ./sublist3r.sh -d $domain -t $sublist3rthreads -v -o $sublist3rfile
-	cmd := "./services/sublist3r/sublist3r.sh"
-	args := []string{"-d", domain, "-t", "100", "-v", "-o", "/words/sublist3r.txt"}
-	if err := exec.Command(cmd, args...).Run(); err != nil {
-		log.WithFields(log.Fields{
-			"error": err.Error(),
-			"cmd":   cmd,
-			"args":  args,
-		}).Error("An error occurred trying to execute")
-		os.Exit(1)
+	baseDir := getBaseDir()
+	sublist3r := filepath.Join(baseDir, "services", "sublist3r", "sublist3r.sh")
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("%s -d %s -t 100 -v -o /words/sublist3r.txt", sublist3r, domain))
+	stdout, _ := cmd.StdoutPipe()
+	cmd.Start()
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		m := scanner.Text()
+		fmt.Println(m)
 	}
+	cmd.Wait()
 }
 
 func runServices(domain string) {
